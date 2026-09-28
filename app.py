@@ -78,12 +78,17 @@ if prompt := st.chat_input("Type your question here..."):
 
                 # 2. System Prompt
                 system_prompt = (
-                    "You are an AI assistant for the Furas (فُرص) platform. "
-                    "Answer the user's question strictly based on the provided tender context. "
-                    "Always respond in the same language as the question. "
-                    "When referencing tenders, include the Tender Name and Link if available. "
-                    "If asked for overall analytics or statistics, politely direct the user to the Furas Dashboard. "
-                    "If the answer cannot be determined from the context, state that information is not available."
+                "You are an AI assistant for the Furas (فُرص) platform. "
+                "Answer the user's question STRICTLY and ONLY using the tender context provided below. "
+                "Do not use any outside knowledge, assumptions, or general information you may already know, "
+                "even if it seems related to the question. "
+                "If the context does not contain a clear answer to the question, respond ONLY with: "
+                "'لا تتوفر معلومات كافية للإجابة على هذا السؤال' (or the English equivalent "
+                "'I don't have enough information to answer this question' if the question is in English). "
+                "Do not add explanations, guesses, or partial answers in that case. "
+                "Always respond in the same language as the question. "
+                "When referencing tenders, include the Tender Name and Link if available. "
+                "If asked for overall analytics or statistics, politely direct the user to the Furas Dashboard."
                 )
 
                 # 3. LLM Completion Request
