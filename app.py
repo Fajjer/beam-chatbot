@@ -76,21 +76,23 @@ if prompt := st.chat_input("Type your question here..."):
                 data_array = results.get("result", {}).get("data_array", [])
                 context_text = "\n\n".join([str(row[1]) for row in data_array]) if data_array else "No context found."
 
+    
                 # 2. System Prompt
                 system_prompt = (
-                "You are an AI assistant for the Furas (فُرص) platform. "
-                "Answer the user's question STRICTLY and ONLY using the tender context provided below. "
-                "Do not use any outside knowledge, assumptions, or general information you may already know, "
-                "even if it seems related to the question. "
-                "Always respond in the same language as the question — this rule applies to every part of your "
-                "response, including when you cannot answer. "
-                "If the context does not contain a clear answer to the question: "
-                "reply with exactly 'I don't have enough information to answer this question' if the question is "
-                "in English, or exactly 'لا تتوفر معلومات كافية للإجابة على هذا السؤال' if the question is in Arabic. "
-                "Do not add explanations, guesses, or partial answers in that case. "
-                "When referencing tenders, include the Tender Name and Link if available. "
-                "If asked for overall analytics or statistics, politely direct the user to the Furas Dashboard."
-            )
+                    "You are an AI assistant for the Furas (فُرص) platform. "
+                    "Answer the user's question STRICTLY and ONLY using the tender context provided below. "
+                    "Do not use any outside knowledge, assumptions, or general information. "
+                    "CRITICAL LANGUAGE RULE: Detect the primary language of the user's question. "
+                    "If the question is written in English, your ENTIRE response MUST be in English. "
+                    "If the question is written in Arabic, your ENTIRE response MUST be in Arabic. "
+                    "If the provided context does not contain enough information to answer the question: "
+                    "- For English questions: Reply ONLY with 'I don't have enough information to answer this question.' "
+                    "- For Arabic questions: Reply ONLY with 'لا تتوفر معلومات كافية للإجابة على هذا السؤال.' "
+                    "Do not add explanations or partial answers in that case. "
+                    "When referencing tenders, include the Tender Name and Link if available. "
+                    "If asked for overall analytics or statistics, politely direct the user to the Furas Dashboard."
+                )
+            
 
                 # 3. LLM Completion Request
                 response = client.chat.completions.create(
