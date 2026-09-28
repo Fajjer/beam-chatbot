@@ -1,32 +1,47 @@
 import streamlit as st
-from databricks.sdk import WorkspaceClient
+import os
+from openai import OpenAI
 from databricks.vector_search.client import VectorSearchClient
 
+# 1. Configurations
 ENDPOINT_NAME = "beam-tenders-endpoint"
 INDEX_NAME = "tenderdatabricks.default.tenders_index"
 LLM_MODEL = "databricks-meta-llama-3-3-70b-instruct"
 
 st.set_page_config(page_title="Furas | Smart Assistant", page_icon="💬", layout="centered")
 
+# 2. Extract Credentials safely
+try:
+    host = st.secrets["DATABRICKS_HOST"].rstrip("/")
+    token = st.secrets["DATABRICKS_TOKEN"]
+except Exception as e:
+    st.error("Missing credentials in Streamlit Secrets. Please check DATABRICKS_HOST and DATABRICKS_TOKEN.")
+    st.stop()
+
+# 3. Initialize Clients
 @st.cache_resource
 def get_clients():
-    host = st.secrets["DATABRICKS_HOST"]
-    token = st.secrets["DATABRICKS_TOKEN"]
-    w = WorkspaceClient(host=host, token=token)
+    # OpenAI Client pointing to Databricks Serving Endpoints
+    client = OpenAI(
+        api_key=token,
+        base_url=f"{host}/serving-endpoints"
+    )
+    # Databricks Vector Search Client
     vsc = VectorSearchClient(
         workspace_url=host,
         personal_access_token=token,
-        disable_notice=True,
+        disable_notice=True
     )
     index = vsc.get_index(endpoint_name=ENDPOINT_NAME, index_name=INDEX_NAME)
-    return w.serving_endpoints.get_open_ai_client(), index
+    return client, index
 
 try:
     client, index = get_clients()
 except Exception as e:
-    st.error("Failed to connect to the service. Please check your credentials and configuration.")
+    st.error(f"Failed to connect to Databricks services: {e}")
     st.stop()
 
+# 4. App UI Setup
 st.title("💬 Furas Smart Assistant")
 st.caption("Search and query tenders and investment opportunities easily and quickly")
 
@@ -35,13 +50,13 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Welcome! How can I assist you with searching tenders and opportunities today?"}
     ]
 
-# Session question limit to manage resource usage (20 questions)
 if "question_count" not in st.session_state:
     st.session_state.question_count = 0
 
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
+# 5. User Interaction Process
 if prompt := st.chat_input("Type your question here..."):
     if st.session_state.question_count >= 20:
         st.warning("You have reached the maximum limit of 20 questions for this session. Please refresh the page to start a new session.")
@@ -52,16 +67,16 @@ if prompt := st.chat_input("Type your question here..."):
 
         with st.spinner("Searching the database..."):
             try:
-                # 1. Retrieval
+                # 1. Similarity Retrieval
                 results = index.similarity_search(
                     query_text=prompt,
                     columns=["TENDER_KEY", "content"],
                     num_results=8,
                 )
                 data_array = results.get("result", {}).get("data_array", [])
-                context_text = "\n\n".join([row[1] for row in data_array])
+                context_text = "\n\n".join([str(row[1]) for row in data_array]) if data_array else "No context found."
 
-                # 2. Generation
+                # 2. System Prompt
                 system_prompt = (
                     "You are an AI assistant for the Furas (فُرص) platform. "
                     "Answer the user's question strictly based on the provided tender context. "
@@ -71,6 +86,7 @@ if prompt := st.chat_input("Type your question here..."):
                     "If the answer cannot be determined from the context, state that information is not available."
                 )
 
+                # 3. LLM Completion Request
                 response = client.chat.completions.create(
                     model=LLM_MODEL,
                     messages=[
@@ -80,8 +96,9 @@ if prompt := st.chat_input("Type your question here..."):
                     temperature=0.1,
                 )
                 answer = response.choices[0].message.content
+
             except Exception as e:
-                answer = "Sorry, an error occurred while processing your request. Please try again."
+                answer = f"⚠️ Error processing request: {str(e)}"
 
         st.session_state.messages.append({"role": "assistant", "content": answer})
         st.chat_message("assistant").write(answer)
