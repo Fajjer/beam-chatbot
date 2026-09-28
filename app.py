@@ -70,7 +70,7 @@ if prompt := st.chat_input("Type your question here..."):
                 # 1. Similarity Retrieval
                 results = index.similarity_search(
                     query_text=prompt,
-                    columns=["TENDER_KEY", "content"],
+                    columns=["tender_key", "content"],
                     num_results=8,
                 )
                 data_array = results.get("result", {}).get("data_array", [])
